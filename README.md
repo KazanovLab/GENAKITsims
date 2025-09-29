@@ -48,7 +48,7 @@ genaclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
 ## Reporting Bugs and Feature Requests
-Please use the [GitHub issue tracker](https://github.com/KazanovLab/SBSClust/issues) to report bugs or suggest features.
+Please use the [GitHub issue tracker](https://github.com/KazanovLab/GENAsims/issues) to report bugs or suggest features.
 
 ## Citing
 Ponomarev GV, Kurtoğlu B, Kazanov MD. "GENAclust: A Bioinformatics Tool for Detecting Spatially Clustered Mutations in Complete Genomes". *to be submitted*
