@@ -2,7 +2,7 @@
 
 # GENAsims
 
-GENAsims is a computational tool designed to detect clusters of mutations in complete genomes. 
+**GENAsims** generates realistic somatic mutations for different mutagens (e.g., APOBEC, UV) by sampling across genomic features such as replication timing bins, gene vs intergenic regions, and transcription/replication strands. 
 
 ## Installation
 
@@ -73,10 +73,10 @@ genasims \
 ```
 
 ## Reporting Bugs and Feature Requests
-Please use the [GitHub issue tracker](https://github.com/KazanovLab/SBSClust/issues) to report bugs or suggest features.
+Please use the [GitHub issue tracker](https://github.com/KazanovLab/GENAsims/issues) to report bugs or suggest features.
 
 ## Citing
-Ponomarev GV, Kurtoğlu B, Kazanov MD. "GENAclust: A Bioinformatics Tool for Detecting Spatially Clustered Mutations in Complete Genomes". *to be submitted*
+*to be submitted*
 
 ## Funding
 This study was supported by the Scientific and Technological Research Council of Turkey (TUBITAK) under Grant Number 123E476. The authors thank TUBITAK for their support. 
