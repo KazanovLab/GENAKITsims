@@ -20,31 +20,56 @@ sudo make install
 
 ## Quick start
 
-GENAclust can generate output in short, full, or both formats simultaneously.
-* The short output (-s option) includes only mutations that are part of the identified clusters.
-* The full output (-f option) contains all mutations from the input VCF files.
+This tool has two modes:
 
-Other options include:
-* The input directory containing VCF file (specified after the -s/-f options)
-* The reference genome location (-g).
-* The output directory (-o).
-* The p-value for determining the between-mutation distance threshold (-t, default: 0.01).
+Index build — create a compact index of genome positions to enable fast sampling by multiple genomic features.
 
-Examples:
+Mutation simulation — generate mutations according to user-defined degree of mutagenesis.
 
-Short format output:
+1) Build indices
+
+Inputs (full/absolute paths):
+
+-g — genome FASTA
+
+-a — genome annotation (e.g., GFF3)
+
+-s — system directory with information on replication timing regions & replication strands
+
+-o — output directory
+
+Example
+
 ```
-genaclust -s /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+genasims \
+  -g   /humanGenome/hg19.fa \
+  -a   /humanAnnotation/Homo_sapiens.GRCh37.87.chr.gff3 \
+  -r   /RT/ESC_smooth_PC_corrected_average_10000_strand.txt \
+  -o   /GENASIMS_indices/
 ```
 
-Full format output:
-```
-genaclust -f /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
-```
+2) Simulate mutations
 
-Both short and full output:
+Inputs:
+
+-i — path to the index dir from step 1 (/GENASIMS_indices/)
+
+-s — system directory with mutagen's distribution parameters
+
+-n — total number of mutations to simulate
+
+percentage per mutagen: currently APOBEC (-a) and UV (-u) are supported (percentages should sum to 100)
+
+-o — output directory
+
+Example
+
 ```
-genaclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+genasims \
+  -i   /GENASIMS_indices/ \
+  -s   /GENASIMS_system/ \
+  -n 500000 -a 60 -u 40 \
+  -o   /outd/
 ```
 
 ## Reporting Bugs and Feature Requests
