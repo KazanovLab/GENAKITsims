@@ -2,7 +2,7 @@
 
 # GENAsims
 
-GENAsims is a computational tool designed to detect clusters of mutations in complete genomes. 
+**GENAsims** generates realistic somatic mutations for different mutagens (e.g., APOBEC, UV) by sampling across genomic features such as replication timing bins, gene vs intergenic regions, and transcription/replication strands. 
 
 ## Installation
 
