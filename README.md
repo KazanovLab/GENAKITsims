@@ -34,7 +34,7 @@ Inputs (full/absolute paths):
 
 -a — genome annotation (e.g., GFF3)
 
--s — system directory with information on replication timing regions & replication strands
+-r — system directory with information on replication timing regions & replication strands
 
 -o — output directory
 
@@ -52,13 +52,13 @@ gksims \
 
 Inputs:
 
--i — path to the index dir from step 1 (/GKsims_indices/)
+-b — path to the index dir from step 1 (/GKsims_indices/)
 
 -s — system directory with mutagen's distribution parameters
 
 -n — total number of mutations to simulate
 
-percentage per mutagen: currently APOBEC (-a) and UV (-u) are supported (percentages should sum to 100)
+percentage per mutagen: currently APOBEC (-p) and UV (-u) are supported (percentages should sum to 100)
 
 -o — output directory
 
@@ -66,9 +66,9 @@ Example
 
 ```
 gksims \
-  -i   /GKsims_indices/ \
+  -b   /GKsims_indices/ \
   -s   /GKsims_system/ \
-  -n 500000 -a 60 -u 40 \
+  -n 500000 -p 60 -u 40 \
   -o   /outd/
 ```
 
