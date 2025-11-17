@@ -167,7 +167,7 @@ int PROGARGS:: procArg( int argc, char* argv[] )
     }
     
     char what[16];
-    char parList[] = "-b@0 -g@1 -gen@2 -rt@3 -o@4 -i@5 -mut@6 -ap@7 -uv@8 -sm@9 -cl@10 ";
+    char parList[] = "-b@0 -g@1 -a@2 -r@3 -o@4 -s@5 -n@6 -p@7 -uv@8 -sm@9 -cl@10 ";
     int parmN;
     MUTGEN_FRACT m_frakt;
     
