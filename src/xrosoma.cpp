@@ -52,6 +52,7 @@ int LoadXromoSet( const char *fPath )
     char fBuff[1024];
     char *pb;
     int skipLoad=0;
+    int indXr;
     string sGen;
 //    char ValXro[128] = { ">chr20&>chr21&>chr22& "};    //short variant
     printf("\nLoading genome from '%s'.....\n", fPath);
@@ -61,6 +62,7 @@ int LoadXromoSet( const char *fPath )
         return -1;
     }
     fprintf(Ftrace,"Loading genome from '%s'.....\n", fPath);
+//    printf( "\n\n================\n TEST LoadXromoSet() REMOVE Redef chroID  test\n=========================\n");
     
     int cntXro = 0;
     XROSOMA *pCurXro = NULL;
@@ -96,7 +98,6 @@ int LoadXromoSet( const char *fPath )
             cntXro++;
             printf("%s  ", pCurXro->XroID.c_str() );
             fprintf(Ftrace, "%s  ", pCurXro->XroID.c_str() );
-//            fprintf("%s=[%ld]\tSum=%u\n", pCurXro->XroID.c_str(), pCurXro->Xsize, cntNucALL );
             pCurXro = NULL;
         }
         
@@ -112,26 +113,17 @@ int LoadXromoSet( const char *fPath )
         }
         else
             skipLoad = 0;
-            
         
         xtrctXID( fBuff );
-        if ( findXroByID(fBuff, 0) >= 0 ) {
-            printf("\nRedefinition chroID=%s", fBuff );
-            fclose (fHuGen );
-            return -1;
+        if ( (indXr=findXroByID(fBuff, 0)) >= 0 ) {
+            printf("\nRedefinition chroID=%s\n", fBuff );
+            fclose (fHuGen );      //        mark='comparePos_Xro ()'
+            return -1;             //        mark='comparePos_Xro ()'
         }
         
-//        if ( (vecDNK.size() == 0) || ( vecDNK.back().chrNum < Xro_ID )  ) {
-//            n = (int)vecDNK.size() - 1;
-//        } else {
-//            for ( n=0; n<vecDNK.size(); n++ )
-//                if ( vecDNK[n].chrNum > Xro_ID )
-//                    break;
-//            vecDNK.insert(vecDNK.begin()+n, XROSOMA(Xro_ID));
-//        }
-        
-        vecDNK.push_back(XROSOMA(fBuff));
-        pCurXro = &vecDNK[vecDNK.size()-1];
+        vecDNK.push_back(XROSOMA(fBuff));       //       mark='comparePos_Xro ()'
+        pCurXro = &vecDNK[vecDNK.size()-1];     //       mark='comparePos_Xro ()'
+//        pCurXro = &vecDNK[indXr];             //       mark='comparePos_Xro ()'
         if ( pCurXro->chrIDmode < 0 )      // first
             pCurXro->chrIDmode =  (strstr(fBuff, "chr") == fBuff) ? 1 : 0;
 
@@ -149,14 +141,14 @@ int LoadXromoSet( const char *fPath )
         cntXro++;
         printf("%s\n", pCurXro->XroID.c_str() );
         fprintf(Ftrace, "%s\n", pCurXro->XroID.c_str());
-//        fprintf(Ftrace, "%s=[%ld]\tSum=%u\n", pCurXro->XroID.c_str(), pCurXro->Xsize, cntNucALL );
     }
-    
     unsigned int cntNucGen = 0;
-    for ( int n=0; n<vecDNK.size(); n++ )   {
-        vecDNK[n].XstartPos = cntNucGen; 
-        cntNucGen += vecDNK[n].Xsize;
-        vecDNK[n].XstopPos = cntNucGen - 1;      // start from 0
+//    printf( "\n\n=========\n TEST LoadXromoSet() REMOVE {XstartPos, XstopPos}\n==========\n");
+
+    for ( int n=0; n<vecDNK.size(); n++ )   {   // mark='comparePos_Xro ()'
+        vecDNK[n].XstartPos = cntNucGen;        // mark='comparePos_Xro ()'
+        cntNucGen += vecDNK[n].Xsize;           // mark='comparePos_Xro ()'
+        vecDNK[n].XstopPos = cntNucGen - 1;     // mark='comparePos_Xro ()'     // start from 0
     }
     printf("=== Loaded %d chromos. cntNuc=%u\n", cntXro, cntNucGen );
     fprintf(Ftrace,"=== Loaded %d chromos. cntNuc=%u\n", cntXro, cntNucGen );
@@ -204,8 +196,8 @@ int loadGENEs (  )
             int iXr = findXroByID(readXid, 0);
             if ( iXr < 0 )
                 continue;
-            if ( pCurXro )
-                printf("\t%s: +cnt=%d -cnt=%d\n", pCurXro->XroID.c_str(), pCurXro->cntGcod, pCurXro->cntGnoc );
+//            if ( pCurXro )
+//                printf("\t%s: +cnt=%d -cnt=%d\n", pCurXro->XroID.c_str(), pCurXro->cntGcod, pCurXro->cntGnoc );
             pCurXro = &vecDNK[iXr];
             pCurXro->cntGcod =0;
             pCurXro->cntGnoc =0;
@@ -225,8 +217,8 @@ int loadGENEs (  )
                 pCurXro->cntGnoc++;
         }
     }
-    if ( pCurXro )
-        printf("\t%s: +cnt=%d -cnt=%d\n", pCurXro->XroID.c_str(), pCurXro->cntGcod, pCurXro->cntGnoc );
+//    if ( pCurXro )
+//        printf("\t%s: +cnt=%d -cnt=%d\n", pCurXro->XroID.c_str(), pCurXro->cntGcod, pCurXro->cntGnoc );
     
     fclose(ArgKit.fGENES);
     printf("\t=====cntGENEs = %d\n",  cntGEN);
@@ -283,10 +275,10 @@ int loadRT (  )
             int iXr = findXroByID(readXid,0);
             if ( iXr < 0 )
                 continue;
-            if ( pCurXro )
-                printf("\t%s: RT1=%d RT2=%d RT3=%d RT4=%d RT5=%d RT6=%d RT7=%d\n", pCurXro->XroID.c_str(),
-                       pCurXro->cntRT[1], pCurXro->cntRT[2], pCurXro->cntRT[3], pCurXro->cntRT[4],
-                       pCurXro->cntRT[5], pCurXro->cntRT[6], pCurXro->cntRT[7] );
+//            if ( pCurXro )
+//                printf("\t%s: RT1=%d RT2=%d RT3=%d RT4=%d RT5=%d RT6=%d RT7=%d\n", pCurXro->XroID.c_str(),
+//                       pCurXro->cntRT[1], pCurXro->cntRT[2], pCurXro->cntRT[3], pCurXro->cntRT[4],
+//                       pCurXro->cntRT[5], pCurXro->cntRT[6], pCurXro->cntRT[7] );
             pCurXro = &vecDNK[iXr];
             for ( int t=0; t<RT_TAB_SIZE; t++ )
                 pCurXro->cntRT[t] = 0;
@@ -309,7 +301,7 @@ int loadRT (  )
 
         for ( int n=startPos-1; n<stopPos-1; n++, pT++ )    {
             SET_RT_VAL(pT, rtN);
-            if ( leading )
+             if ( leading )
                 SET_LEADING_TAG(pT);
             if ( lagging )
                 SET_LAGGING_TAG(pT);
@@ -318,10 +310,10 @@ int loadRT (  )
         }
 
     }
-    if ( pCurXro )
-        printf("\t%s: RT1=%d RT2=%d RT3=%d RT4=%d RT5=%d RT6=%d RT7=%d\n", pCurXro->XroID.c_str(),
-               pCurXro->cntRT[1], pCurXro->cntRT[2], pCurXro->cntRT[3], pCurXro->cntRT[4],
-               pCurXro->cntRT[5], pCurXro->cntRT[6], pCurXro->cntRT[7] );
+//    if ( pCurXro )
+//        printf("\t%s: RT1=%d RT2=%d RT3=%d RT4=%d RT5=%d RT6=%d RT7=%d\n", pCurXro->XroID.c_str(),
+//               pCurXro->cntRT[1], pCurXro->cntRT[2], pCurXro->cntRT[3], pCurXro->cntRT[4],
+//               pCurXro->cntRT[5], pCurXro->cntRT[6], pCurXro->cntRT[7] );
     
     fclose(ArgKit.fREPTI);
     printf("\t=====cntRTsegm cnt=%d\n",  cntRT);

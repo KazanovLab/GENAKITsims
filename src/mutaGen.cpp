@@ -7,9 +7,10 @@
 //
 
 #include <stdio.h>
-#include "vector"
-#include "string"
+#include <vector>
+#include <string>
 #include <time.h>
+#include <random>
 
 #include "cmain.h"
 #include "xrosoma.h"
@@ -20,8 +21,9 @@ extern PROGARGS ArgKit;
 extern HUGEN GENOM;
 extern vector < XROSOMA > vecDNK;
 extern KEY_MAP keySet;
+extern FILE *Ftrace;
 
-vector < MUTAGEN > MutaGen;
+vector < MUTAGEN > MutGenTab;
 vector < MUTSIG >  vMutType;
 
 /////////////////////////////////////////////////////////////////////////
@@ -116,16 +118,21 @@ int makeMutTab( )
     }
     iniMut[4] = { {"-ap", "APOBEC"}, {"-uv", "UV"},  {"-sm", "SMOKING"},  {"-cl", "CLOCK"} };
     
+    MutGenTab.clear();
+    for ( n=0; n<4; n++)
+        MutGenTab.push_back(MUTAGEN(iniMut[n].fullID));
+    
     for ( n=0; n<ArgKit.vMGfract.size(); n++ )  {
-        for ( v=0; v<4; v++ )
+        for ( v=0; v<MutGenTab.size(); v++ )    {
             if ( strcmp(ArgKit.vMGfract[n].first, iniMut[v].shortID) == 0 )
                 break;
+        }
         if ( v >= 4 )   {
             printf("UnKnown full name for '%s'\n", ArgKit.vMGfract[n].first );
             return -1;
         }
-        MutaGen.push_back(MUTAGEN(iniMut[v].fullID));
-        MutaGen.back().amtMut = ArgKit.amtMut * ArgKit.vMGfract[n].second;
+//        MutGenTab.push_back(MUTAGEN(iniMut[v].fullID));
+        MutGenTab[v].amtMut = ArgKit.amtMut * ArgKit.vMGfract[n].second;
     }
     
     return 0;
@@ -147,47 +154,56 @@ int MUTAGEN:: splitMut2Key( )
     
     for ( nMut=0; nMut<amtMut; nMut++ ) {   // amtMut=%
         Tag = '\0';
+// ----- mutation
         fract = (double)rand()/(double)RAND_MAX;
         ITfract = lower_bound(fract_mut.begin(), fract_mut.end(), fract);
         indM = (int)(ITfract - fract_mut.begin());
             strcpy(Motif, vMutType[indM].motif);
-
-        fract = (double)rand()/(double)RAND_MAX;     
-        ITfract = lower_bound(fract_rt.begin(), fract_rt.end(), fract);
-        indRT = (int)(ITfract-fract_rt.begin());
-            SET_RT_VAL(&Tag, indRT);
-        
+// ----- Gene
         fract = (double)rand()/(double)RAND_MAX;
         gen = (fract <= fract_gen[0]) ? 0 : 1;
-            if ( gen )
-                SET_GEN_TAG(&Tag);
-        
+        if ( gen )
+            SET_GEN_TAG(&Tag);
+// ----- RT
+        fract = (double)rand()/(double)RAND_MAX;
+        if ( gen )  {
+            ITfract = lower_bound(fract_rt_gene.begin(), fract_rt_gene.end(), fract);
+            indRT = (int)(ITfract-fract_rt_gene.begin());
+        }
+        else    {
+            ITfract = lower_bound(fract_rt_intg.begin(), fract_rt_intg.end(), fract);
+            indRT = (int)(ITfract-fract_rt_intg.begin());
+        }
+            SET_RT_VAL(&Tag, indRT);
+// ----- Coding
         fract = (double)rand()/(double)RAND_MAX;
         coding = (fract <= fract_cod[0]) ? 0 : 1;
             if ( coding )
                 SET_CODING_TAG(&Tag);
-        
-        fract = (double)rand()/(double)RAND_MAX;
-        strnd = (fract<=fract_strand[0]) ? 0 : ( (fract<=fract_strand[1]) ? 1 : 2 );
-        if ( strnd==1)
-            SET_LEADING_TAG(&Tag);
-        if ( strnd==2)
-            SET_LAGGING_TAG(&Tag);
+// ----- Strand
+        if ( indRT > 0 )    {
+            fract = (double)rand()/(double)RAND_MAX;
+            strnd = (fract<=fract_strand[0]) ? 0 : ( (fract<=fract_strand[1]) ? 1 : 2 );
+            if ( strnd==1)
+                SET_LEADING_TAG(&Tag);
+            if ( strnd==2)
+                SET_LAGGING_TAG(&Tag);
+        }
 
 //        setKEYbyTag (Key, &Tag, invert);
-        invert = formKEY (Motif, &Tag, Key);
+        invert = formKEY (Motif, &Tag, Key);        // = 0 alwey
         itKey = keySet.find(Key);
         if ( itKey == keySet.end() )  {
             printf( "splitMut2Key( ): KEY [%s] not found at MAP\n", Key);
             return -1;
         }
-//      unsigned int  Rnd_pos = ( (double)rand() / (double)RAND_MAX ) * (double)(GENOM.vIndexG[itKM->second].amtPos-1);
         GENOM.addALT_MUT_CNTS(itKey->second, vMutType[indM].cALT);
     }
     
     return nMut;
 }
 //////////////////////////////////////////////////////////////////////////
+// int comparePos_( int nMot, INV_POS &PosG);   //  mark='comparePos_Xro ()'
 
 int HUGEN:: rndMutation( const char *mgName ) 
 {
@@ -197,7 +213,7 @@ int HUGEN:: rndMutation( const char *mgName )
     char cod, gen, rt, strnd;
     char Coding[12], Genes[12], Strand[12];
     char motif[4];
-    unsigned int PosX;
+    unsigned int PosXmotif;
     XROSOMA *pXro;
     int cntMut=0;
     int RetC;
@@ -206,13 +222,12 @@ int HUGEN:: rndMutation( const char *mgName )
     for ( int nK=0; nK<vIndexG.size(); nK++)    {
         if ( vIndexG[nK].amtPos <= 0 )
             continue;
-//        vData.vPosM.clear();   
+        RetC = vAltCnt[nK].cntP[0] + vAltCnt[nK].cntP[1] + vAltCnt[nK].cntP[2] + vAltCnt[nK].cntP[3];
+        if ( RetC==0 )
+            continue;
+        
         RetC = readData (vIndexG[nK], BufDataG, GenBasFile );
-        if ( RetC != vIndexG[nK].amtPos )   {
-            printf( "rndMutation(%s)::readData(%s)=%d != %d\n", mgName,
-                   vIndexG[nK].mKey, RetC, vIndexG[nK].amtPos);
-            return -1;
-        }
+        
         cod = vIndexG[nK].mKey[_iKEY_CODING];
         switch (cod) {
             case 'c':
@@ -222,7 +237,7 @@ int HUGEN:: rndMutation( const char *mgName )
                 strcpy(Coding, "NonCoding");
                 break;
             default:
-                Coding[0] = '\0';
+                strcpy(Coding, "-");
                 break;
         }
         gen    = vIndexG[nK].mKey[_iKEY_GENE];
@@ -234,19 +249,19 @@ int HUGEN:: rndMutation( const char *mgName )
                 strcpy(Genes, "InterGenes");
                 break;
             default:
-                Genes[0] = '\0';
+                strcpy(Genes, "-");
                 break;
         }
         strnd = vIndexG[nK].mKey[_iKEY_STRAND];
         switch (strnd) {
-            case '<':
+            case '>':
                 strcpy(Strand, "leading");
                 break;
-            case '>':
+            case '<':
                 strcpy(Strand, "lagging");
                 break;
             default:
-                Strand[0] = '\0';
+                strcpy(Strand, "-");
                 break;
         }
         rt     = vIndexG[nK].mKey[_iKEY_RT];
@@ -258,16 +273,31 @@ int HUGEN:: rndMutation( const char *mgName )
             for ( int cnt=0; cnt<vAltCnt[nK].cntP[nALT]; cnt++ )    {
                 Rnd_pos = ( (double)rand() / (double)RAND_MAX ) * (double)(vIndexG[nK].amtPos-1);
                 PosG = BufDataG[Rnd_pos];
-                pXro = findXroByPOS( PosG, PosX );
-                if ( ! pXro )
+                pXro = findXroByPOS( PosG, PosXmotif );
+                if ( ! pXro )   {
+                    printf("rndMutation(%s):: Pos=%d, lastPosGENOME=%d\n", mgName,
+                           PosG.second, vecDNK.back().XstopPos);
                     return -1;
-                cREF = ( PosG.first ) ? getCmpl_Nuc( vIndexG[nK].mKey[1] ) : vIndexG[nK].mKey[1];
+                }
+//                if ( comparePos_( nK, PosG) < 0 )     //  mark='comparePos_Xro ()'
+//                    continue;                         //  mark='comparePos_Xro ()'
+                
+                if ( PosG.first )
+                    rewindMotif(GENOM.vIndexG[nK].mKey, motif);
+                else
+                    strncpy(motif, GENOM.vIndexG[nK].mKey, MOTKEY_SIZE);
+                cREF = motif[1];
                 cALT = ( PosG.first ) ? getCmpl_Nuc(getNuc (nALT)) : getNuc (nALT);
-                strncpy(motif, vIndexG[nK].mKey, 3);
- //               motif[3] = '\0';
+//  mark='comparePos_Xro ()'
+//                if ( pXro->testValidDNK( (int)PosXmotif+1, cREF ) == 0 )   {
+//                    printf( "Key[%s] Ref'%c'\n",vIndexG[nK].mKey, cREF);
+//                    continue;
+//                }   //  mark='comparePos_Xro ()'
+
+               motif[3] = '\0';
 //              CHR POS REF ALT MOTIF CODING GENES RT STRAND MUTAGEN
                 fprintf(pXro->XtempFile, "%s\t%u\t%c\t%c\t%s\t%s\t%s\t%c\t%s\t%s\n",
-                        pXro->XroID.c_str(), PosX, cREF,cALT, motif, //vIndexG[nK].mKey,
+                        pXro->XroID.c_str(), PosXmotif+1, cREF,cALT, motif,
                         Coding, Genes, rt, Strand, mgName );
                 pXro->cntOutMut++;
                 cntMut++;
@@ -295,32 +325,89 @@ char *scanNextMG( char *pB, char *mutID )
 }
 //////////////////////////////////////////////////////////////////////////
 
-int testHeader(char *hdr, char *fName)
+int testHeader(char *hdr, int indMG[], char *fName)
 {
     char *pB = hdr;
     char MutaID[64];
-    int nMG=0;
+    int nMG;
+    int nCol=0;
 
+    for ( int n=0; n<MutGenTab.size(); n++ )
+        indMG[n] = -1;
+        
     while ( pB )    {
         pB = scanNextMG( pB, MutaID );
         if ( ! MutaID[0] )
             continue;
-        if ( nMG >= MutaGen.size()  )   {
-            nMG++;
+//        if ( nMG >= MutGenTab.size()  )   {
+//            nMG++;
+//            continue;
+//        }
+        for ( nMG=0; nMG<MutGenTab.size(); nMG++ ) {
+            if ( strcmp(MutaID, MutGenTab[nMG].MGname) == 0 )
+                break;
+        }
+        if ( nMG >= MutGenTab.size() )    {
+            printf("%s :: Unknown  Mutagen_Name '%s'\n", fName, MutaID);
             continue;
         }
-        if ( strcmp(MutaID, MutaGen[nMG].MGname) != 0 )    {
-            printf("%s :: Mismatch of order at Mutagen List '%s'\n", fName, MutaID);
-            return -1;
-        }
-        nMG++;
+        indMG[nCol] = nMG;
+        nCol++;
     }
-    if ( nMG != MutaGen.size() )    {
-        printf("%s :: Mismatch of Mutagen count=%d : must be = %d\n",
-               fName, nMG, (int)MutaGen.size() );
+    if ( nCol==0 )  {
+        printf("%s :: Empty table header in file '%s'\n", fName, MutaID);
         return -1;
     }
+/*    if ( nMG != MutGenTab.size() )    {
+        printf("%s :: Mismatch of Mutagen count=%d : must be = %d\n",
+               fName, nMG, (int)MutGenTab.size() );
+        return -1;
+    }
+ */
     return 0;
+}
+/////////////////////////////////////////////////////////////////////////
+
+int parsRecrd(char *Buff, char *Rtyp, double Rvals[], int refMG[] )
+{
+    int nMG;
+    char *pB=Buff;
+    int ref;
+    
+    
+    if ( ! Buff ) {
+        printf ("Not enough lines at file  ... ");
+        return 0;
+    }
+    for ( int n=0; n<MAX_MUTAGEN; n++ )
+        Rvals[n] = 0;
+    
+    while ( *pB == ' ' ) pB++;
+    if ( *pB < ' ' )    {
+        printf ("Not defined RecType '%s' at file ...", Buff );
+        return 0;
+    }
+    
+    while ( *pB != '\t')
+        *Rtyp++ = *pB++;
+    *Rtyp = '\0';
+    pB++;
+    for ( nMG=0; nMG<MutGenTab.size(); nMG++ )    {
+        if ( (ref = refMG[nMG]) < 0 )
+            break;
+        if ( !*pB ||  *pB=='\n' )
+            break;
+        
+        while ( *pB==' ') pB++;
+        if (  *pB != '\t' )
+            sscanf(pB, "%lf", &Rvals[ref]);
+        while ( *pB>=' ') pB++;
+        pB++;
+    }
+    if ( nMG==0 )
+        printf ("Not Empty Rec '%s' at file ...", Buff );
+    
+    return nMG;
 }
 //////////////////////////////////////////////////////////////////////////
 
@@ -332,98 +419,107 @@ int readCTGR( )
     char f_motif[]  = "mutsig.txt";
     char f_coding[] = "TranscriptionStrand.txt";
     char f_gen[]    = "genes.txt";
-    char f_rt[]     = "ReplicationTiming.txt";
+    char f_rt_gene[]     = "ReplicationTiming_gene.txt";
+    char f_rt_intg[]     = "ReplicationTiming_inter.txt";
     char f_strand[] = "ReplicationStrand.txt";
-//    int nMG=0;
-//    MUTSIG recrd;
-//    char MutType[64];
-//    double portion;
+    int refMG[MAX_MUTAGEN];
 
+// ----- mutation -------------------------------------------------
     fPath = ArgKit.INdir + f_motif;
     if ( ! (f_CAT = fopen(fPath.c_str(), "r")) ) {
         printf ( "Cannt OPEN  '%s'\n", fPath.c_str() );
         return -1;
     }
     fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( testHeader(Buff,f_rt) < 0 )
+    if ( testHeader(Buff, refMG, f_motif) < 0 )
         return -1;
-/*
-    char *pB = Buff;
-//  --------------load header  (mutagen IDs) -----------------
-    while ( pB )    {
-        pB = scanNextMG( pB, MutType );
-        if ( ! MutType[0] )
-            continue;
-        MutaGen.push_back(MUTAGEN(MutType));
-    }
-*/
-    if ( loadMutRanges(f_CAT, f_motif) > 0 )
+    if ( loadMutRanges(f_CAT, refMG, f_motif) < 0 )
         return -1;
     fclose(f_CAT);
-// ===========================================================
-    fPath = ArgKit.INdir + f_rt;
+// ----- RT_gene -------------------------------------------------
+    fPath = ArgKit.INdir + f_rt_gene;
     if ( ! (f_CAT = fopen(fPath.c_str(), "r")) ) {
         printf ( "Cannt OPEN  '%s'\n", fPath.c_str() );
         return -1;
     }
     fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( testHeader(Buff,f_rt) < 0 )
+    if ( testHeader(Buff, refMG, f_rt_gene) < 0 )
         return -1;
-    if ( loadRtRanges(f_CAT,f_rt) < 0 )
+    if ( loadRtRanges(f_CAT, refMG, f_rt_gene) < 0 )
         return -1;
     fclose(f_CAT);
-// ===========================================================
+// ----- RT_interGene ----------------------------------------------
+    fPath = ArgKit.INdir + f_rt_intg;
+    if ( ! (f_CAT = fopen(fPath.c_str(), "r")) ) {
+        printf ( "Cannt OPEN  '%s'\n", fPath.c_str() );
+        return -1;
+    }
+    fgets(Buff, sizeof(Buff)-2, f_CAT);
+    if ( testHeader(Buff, refMG, f_rt_intg) < 0 )
+        return -1;
+    if ( loadRtRanges(f_CAT, refMG, f_rt_intg) < 0 )
+        return -1;
+    fclose(f_CAT);
+    
+// ----- Coding ----------------------------------------------
     fPath = ArgKit.INdir + f_coding;
     if ( ! (f_CAT = fopen(fPath.c_str(), "r")) ) {
         printf ( "Cannt OPEN  '%s'\n", fPath.c_str() );
         return -1;
     }
     fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( testHeader(Buff,f_coding) < 0 )
+    if ( testHeader(Buff, refMG, f_coding) < 0 )
         return -1;
-    if ( loadCodRanges(f_CAT,f_coding) < 0 )
+    if ( loadCodRanges(f_CAT, refMG, f_coding) < 0 )
         return -1;
     fclose(f_CAT);
-// ===========================================================
+// ----- Genes ----------------------------------------------
     fPath = ArgKit.INdir + f_gen;
     if ( ! (f_CAT = fopen(fPath.c_str(), "r")) ) {
         printf ( "Cannt OPEN  '%s'\n", fPath.c_str() );
         return -1;
     }
     fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( testHeader(Buff,f_gen) < 0 )
+    if ( testHeader(Buff, refMG, f_gen) < 0 )
         return -1;
-    if ( loadGenRanges(f_CAT,f_gen) < 0 )
+    if ( loadGenRanges(f_CAT, refMG, f_gen) < 0 )
         return -1;
     fclose(f_CAT);
-// ===========================================================
+// ----- Strand ----------------------------------------------
     fPath = ArgKit.INdir + f_strand;
     if ( ! (f_CAT = fopen(fPath.c_str(), "r")) ) {
         printf ( "Cannt OPEN  '%s'\n", fPath.c_str() );
         return -1;
     }
     fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( testHeader(Buff,f_gen) < 0 )
+    if ( testHeader(Buff, refMG, f_gen) < 0 )
         return -1;
-    if ( loadStrandRanges(f_CAT,f_gen) < 0 ) 
+    if ( loadStrandRanges(f_CAT, refMG, f_gen) < 0 )
         return -1;
     fclose(f_CAT);
+// ===========================================================
+    
+    for ( int nMu=0; nMu<MutGenTab.size(); nMu++ )  {
+        if ( MutGenTab[nMu].amtMut==0 )
+            continue;
+        if ( MutGenTab[nMu].beta_dirichlet( ) < 0 )
+            return -1;
+    }
 
     return 0;
 }
 //////////////////////////////////////////////////////////////////////////
 
-int loadMutRanges(FILE *f_CAT, char *fName)
+int loadMutRanges(FILE *f_CAT, int refMG[], char *fName)
 {
     char Buff[512];
     char *pB;
     MUTSIG recrd;
     char MutType[64];
     double portion;
-    int nMG;
+    int nMG, ref;
     
     while ( 1 )     {
-
         if ( ! ( pB=fgets(Buff, sizeof(Buff)-2, f_CAT) ) )
             break;
 // ------ create table of mutation types -------------
@@ -442,437 +538,350 @@ int loadMutRanges(FILE *f_CAT, char *fName)
         while ( *pB != '\t' ) pB++;
         
 //-------- fill field fract_mut at Mutagen
-        for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
+        for ( nMG=0; nMG<MutGenTab.size(); nMG++ )  {
+            if ( (ref = refMG[nMG]) < 0 )
+                break;
             if ( ! *pB )
                 break;
-            if ( sscanf(pB, "\t%lf", &portion)==0 )    {
+            portion = 0;
+            if ( (sscanf(pB, "\t%lf", &portion)==0) &&
+                  MutGenTab[ref].amtMut > 0  )    {
                 printf ( "%s :: '%s' empty rangeValue for %s : '%s'\n",
-                        fName, MutType, MutaGen[nMG].MGname, Buff);
+                        fName, MutType, MutGenTab[ref].MGname, Buff);
                 return -1;
             }
+            if ( MutGenTab[ref].amtMut == 0 )
+                continue;
+            
+            MutGenTab[ref].fract_mut.push_back (portion);
+            
             pB++;   //// '\t'
-            MutaGen[nMG].fract_mut.push_back (portion);
             while ( *pB && (*pB != '\t') )
                 pB++;
         }
-        if ( nMG != MutaGen.size() )    {
-            printf("%s :: Mismatch of Mutagen count=%d : must be = %d '%s'\n",
-                   fName, nMG, (int)MutaGen.size(), Buff);
-            return -1;
-        }
+
     }
     
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        for ( int p=1; p<MutaGen[nMG].fract_mut.size(); p++ )
-            MutaGen[nMG].fract_mut[p] += MutaGen[nMG].fract_mut[p-1];
+    for ( nMG=0; nMG<MutGenTab.size(); nMG++ )  {
+        if ( (ref = refMG[nMG]) < 0 )
+            break;
+        if ( MutGenTab[ref].amtMut == 0 )
+            continue;
+        for ( int p=1; p<MutGenTab[nMG].fract_mut.size(); p++ )
+            MutGenTab[nMG].fract_mut[p] += MutGenTab[nMG].fract_mut[p-1];
     }
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        if ( MutaGen[nMG].fract_mut.back() < DOUBLE_ONE )
+    for ( nMG=0; nMG<MutGenTab.size(); nMG++ )  {
+        if ( (ref = refMG[nMG]) < 0 )
+            break;
+        if ( MutGenTab[ref].amtMut == 0 )
+            continue;
+        if ( MutGenTab[nMG].fract_mut.back() < DOUBLE_ONE )
             printf ( "%s :: Check distribution of shares for %s (sum<1)",
-                    fName, MutaGen[nMG].MGname );
-        MutaGen[nMG].fract_mut.back() = (double) 1;
+                    fName, MutGenTab[nMG].MGname );
+        MutGenTab[nMG].fract_mut.back() = (double) 1;
     }
-/*
-    vector < double > ::iterator itD;
 
-     for ( int p=0; p<MutaGen[0].fract_mut.size(); p++ )  {
-         portion = MutaGen[0].fract_mut[p];
-         itD = lower_bound(MutaGen[0].fract_mut.begin(), MutaGen[0].fract_mut.end(), portion);
-         printf ( "%d. --> %d\n", p, (int)(itD-MutaGen[0].fract_mut.begin()));
-     }
-
-    for ( int n=0; n<100; n++ )  {
-        portion = (double)rand()/(double)RAND_MAX;
-        itD = lower_bound(MutaGen[0].fract_mut.begin(), MutaGen[0].fract_mut.end(), portion);
-        printf ( "%d. rnd=%lf ---> %d. %lf\n", n, portion, (int)(itD-MutaGen[0].fract_mut.begin()), *itD);
-    }
-*/
     return 0;
 }
 //////////////////////////////////////////////////////////////////////////
 
-int loadRtRanges(FILE *f_CAT, char *fName)
+int loadRtRanges(FILE *f_CAT, int refMG[], char *fName)
 {
+    char RecTypes[] =  "1RT1_2RT2_3RT3_4RT4_5RT5_6RT6_7RT7_0undefRT_";
     char Buff[512];
+    int recTyp[RT_TAB_SIZE];
+    
+    double rVals[MAX_MUTAGEN];
+    char scanTyp[32], *pTyp;
     char *pB;
-    int RTn;
-    double portion;
-    int nMG;
-    
-    for ( int n=0; n<MutaGen.size(); n++ )   {
-        for ( int p=0; p<RT_TAB_SIZE; p++ )
-            MutaGen[n].fract_rt.push_back (0);
-    }
-    
-    while ( 1 )     {
-        if ( ! ( pB=fgets(Buff, sizeof(Buff)-2, f_CAT) ) )
-            break;
-        if ( sscanf(pB, "RT%d\t", &RTn ) != 1 )    {
-            printf ( "%s :: Need RTn in rec: '%s'\n", fName, Buff);
+    int RT_gene;
+
+    RT_gene =  ( strstr(fName, "inter") ) ? 0 : 1;
+    for ( int n=0; n<MutGenTab.size(); n++ )
+        for ( int p=0; p<RT_TAB_SIZE; p++ ) {
+            if ( RT_gene )
+                MutGenTab[n].fract_rt_gene.push_back (0);
+            else
+                MutGenTab[n].fract_rt_intg.push_back (0);
+        }
+    for ( int Line=0; Line<RT_TAB_SIZE; Line++)   {
+        pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
+        if ( parsRecrd(pB, scanTyp, rVals, refMG) == 0 )  {
+            printf ("%s\n", fName);
             return -1;
         }
-        if ( RTn >= RT_TAB_SIZE )  {
-            printf ( "%s :: ignored RTn=%d  [0:7] in rec: '%s'\n", fName, RTn, Buff);
-            continue;
+        if ( ! ( pTyp=strstr(RecTypes, scanTyp)) )    {
+            printf ("Inv. RT_Type '%s' at file  '%s'\n", scanTyp, fName );
+            return -1;
         }
-        while (*pB != '\t' ) pB++;
-        
-        for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-            if ( ! *pB )
-                break;
-            if ( sscanf(pB, "\t%lf", &portion)==0 )    {
-                printf ( "%s :: 'RT%d' empty rangeValue for %s : '%s'\n",
-                        fName, RTn, MutaGen[nMG].MGname, Buff);
+        recTyp[Line] = atoi(pTyp-1);
+        for ( int n=0; n<MutGenTab.size(); n++ )    {
+            if ( RT_gene )
+                MutGenTab[n].fract_rt_gene[recTyp[Line]] = rVals[n];
+            else
+                MutGenTab[n].fract_rt_intg[recTyp[Line]] = rVals[n];
+        }
+    }
+
+    for ( int nMu=0; nMu<MutGenTab.size(); nMu++ )  {
+        if ( MutGenTab[nMu].amtMut==0 )
+            continue;
+        for ( int n=0; n<RT_TAB_SIZE-1; n++ ) {
+            rVals[0] = ( RT_gene )  ? MutGenTab[nMu].fract_rt_gene[n]
+                                    : MutGenTab[nMu].fract_rt_intg[n];
+            if ( rVals[0]==0 )   {
+                printf ("%s :: MutGen='%s' : all RTvalues must be > 0 \n",
+                        fName, MutGenTab[nMu].MGname);
                 return -1;
             }
-            pB++;   //// '\t'
-            MutaGen[nMG].fract_rt[RTn] = portion;
-            while ( *pB && *pB != '\t' ) pB++;
-        }
-        if ( nMG != MutaGen.size() )    {
-            printf("%s :: Mismatch of Mutagen count=%d : must be = %d '%s'\n",
-                   fName, nMG, (int)MutaGen.size(), Buff);
-            return -1;
         }
     }
-    for ( int n=0; n<MutaGen.size(); n++ )  {
-        for ( int p=1; p<MutaGen[n].fract_rt.size(); p++ )
-            MutaGen[n].fract_rt[p] += MutaGen[n].fract_rt[p-1];
-        
-    }
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        if ( MutaGen[nMG].fract_rt.back() < DOUBLE_ONE )
-            printf ( "%s :: Check distribution of shares for %s (sum<1)\n",
-                    fName, MutaGen[nMG].MGname );
-        MutaGen[nMG].fract_rt.back() = (double) 1;
-    }
+    
     return 0;
 }
 /////////////////////////////////////////////////////////////////////////
 
-int parsRec(char *Buff, const char *RecTypes, vector < double > &vRanges)
-{
-    const char *pB;
-    int nMG, typ;
-    double portion;
-    char rType[64];
-    
-    if ( ! Buff ) {
-        printf ("Not enough lines at file  ... ");
-        return -1;
-    }
-    vRanges.clear();
-    sscanf(Buff, "%s\t", rType );
-    if ( ! ( pB=strstr(RecTypes, rType)) )    {
-        printf ("Inv. Type line '%s' at file  ... ", rType );
-        return -1;
-    }
-    typ = atoi(pB-1);
-    pB = Buff;
-    while (*pB != '\t' ) pB++;
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        if ( ! *pB )
-            break;
-        if ( sscanf(pB, "\t%lf", &portion)==0 )    {
-            printf ( "Empty rangeValue for %s '%s' ... ",
-                    MutaGen[nMG].MGname, Buff);
-            return -1;
-        }
-        pB++;   //// '\t'
-        vRanges.push_back(portion);
-        while ( *pB && *pB != '\t' ) pB++;
-    }
-    if ( vRanges.size() != MutaGen.size() )    {
-        printf("Mismatch of Mutagen count=%d : must be = %d '%s' ... ",
-               nMG, (int)MutaGen.size(), Buff);
-        return -1;
-    }
-    
-    return typ;
-}
-/////////////////////////////////////////////////////////////////////////
-
-int loadCodRanges(FILE *f_CAT, char *fName)
+int loadCodRanges(FILE *f_CAT, int refMG[], char *fName)
 {
     char RecTypes[] =  "1Coding_0Noncoding_";
     char Buff[512];
-    int rTyp1, rTyp2;
-    vector < double > vRanges;
+    int recTyp[2];
+    double rVals[MAX_MUTAGEN];
+    char scanTyp[32], *pTyp;
+    char *pB;
+
+    for ( int Line=0; Line<2; Line++)   {
+        pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
+        if ( parsRecrd(pB, scanTyp, rVals, refMG) == 0 )  {
+            printf ("%s\n", fName);
+            return -1;
+        }
+        if ( ! ( pTyp=strstr(RecTypes, scanTyp)) )    {
+            printf ("Inv. CodingType '%s' at file  '%s'\n", scanTyp, fName );
+            return -1;
+        }
+        recTyp[Line] = atoi(pTyp-1);
+        for ( int n=0; n<MutGenTab.size(); n++ )
+            MutGenTab[n].fract_cod[recTyp[Line]] = rVals[n];
+    }
+    if ( recTyp[0]==recTyp[1])  {
+        printf ("%s :: redefined CodingType : '%s'\n", fName, Buff);
+        return -1;
+    }
     
-    char *pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( (rTyp1=parsRec(pB, RecTypes, vRanges)) < 0 )   {
-        printf ("%s\n", fName);
-        return -1;
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )
-        MutaGen[n].fract_cod[rTyp1] = vRanges[n];
-//-------
-    pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( (rTyp2=parsRec(pB, RecTypes, vRanges)) < 0 )   {
-        printf ("%s\n", fName);
-        return -1;
-    }
-    if ( rTyp2==rTyp1)  {
-        printf ("%s :: redefined line : '%s'\n", fName, Buff);
-        return -1;
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )  {
-        MutaGen[n].fract_cod[rTyp2] = vRanges[n];
-        MutaGen[n].fract_cod[1] += MutaGen[n].fract_cod[0];
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )  {
-        if ( MutaGen[n].fract_cod[1] < DOUBLE_ONE )
-            printf ( "%s :: Check distribution of shares for %s (sum<1)\n",
-                    fName, MutaGen[n].MGname );
-        MutaGen[n].fract_cod[1] = (double) 1;
+    for ( int n=0; n<MutGenTab.size(); n++ )  {
+        if ( MutGenTab[n].amtMut==0 )
+            continue;
+        if ( MutGenTab[n].fract_cod[0]==0 || MutGenTab[n].fract_cod[1]==0 ) {
+            printf ("%s :: MutGen='%s' : Coding and non-Coding must be > 0 : %lf %lf\n",
+                    fName, MutGenTab[n].MGname, MutGenTab[n].fract_cod[1], MutGenTab[n].fract_cod[0]);
+            return -1;
+        }
     }
     
     return 0;
 }
 /////////////////////////////////////////////////////////////////////////
 
-int loadGenRanges(FILE *f_CAT, char *fName)
+int loadGenRanges(FILE *f_CAT, int refMG[], char *fName)
 {
     char RecTypes[] =  "1Genes_0Intergenes_";
     char Buff[512];
-    int rTyp1, rTyp2;
-    vector < double > vRanges;
+    int recTyp[2];
+    double rVals[MAX_MUTAGEN];
+    char scanTyp[32], *pTyp;
+    char *pB;
     
-    char *pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( (rTyp1=parsRec(pB, RecTypes, vRanges)) < 0 )   {
-        printf ("%s\n", fName);
+    for ( int Line=0; Line<2; Line++)   {
+        pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
+        if ( parsRecrd(pB, scanTyp, rVals, refMG) == 0 )  {
+            printf ("%s\n", fName);
+            return -1;
+        }
+        if ( ! ( pTyp=strstr(RecTypes, scanTyp)) )    {
+            printf ("Inv. GeneType '%s' at file  '%s'\n", scanTyp, fName );
+            return -1;
+        }
+        recTyp[Line] = atoi(pTyp-1);
+        for ( int n=0; n<MutGenTab.size(); n++ )
+            MutGenTab[n].fract_gen[recTyp[Line]] = rVals[n];
+    }
+    if ( recTyp[0]==recTyp[1])  {
+        printf ("%s :: redefined GeneType : '%s'\n", fName, Buff);
         return -1;
     }
-    for ( int n=0; n<MutaGen.size(); n++ )
-        MutaGen[n].fract_gen[rTyp1] = vRanges[n];
-//-------
-    pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( (rTyp2=parsRec(pB, RecTypes, vRanges)) < 0 )   {
-        printf ("%s\n", fName);
-        return -1;
-    }
-    if ( rTyp2==rTyp1)  {
-        printf ("%s :: redefined line : '%s'\n", fName, Buff);
-        return -1;
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )  {
-        MutaGen[n].fract_gen[rTyp2] = vRanges[n];
-        MutaGen[n].fract_gen[1] += MutaGen[n].fract_gen[0];
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )  {
-        if ( MutaGen[n].fract_gen[1] < DOUBLE_ONE )
-            printf ( "%s :: Check distribution of shares for %s (sum<1)\n",
-                    fName, MutaGen[n].MGname );
-        MutaGen[n].fract_gen[1] = (double) 1;
+    
+    for ( int n=0; n<MutGenTab.size(); n++ )  {
+        if ( MutGenTab[n].amtMut==0 )
+            continue;
+        if ( MutGenTab[n].fract_gen[0]==0 || MutGenTab[n].fract_gen[1]==0 ) {
+            printf ("%s :: MutGen='%s' : Gene and interGene must be > 0 : %lf %lf\n",
+                    fName, MutGenTab[n].MGname, MutGenTab[n].fract_gen[1], MutGenTab[n].fract_gen[0]);
+            return -1;
+        }
     }
     
     return 0;
 }
 /////////////////////////////////////////////////////////////////////////
 
-int loadStrandRanges(FILE *f_CAT, char *fName)
+int loadStrandRanges(FILE *f_CAT, int refMG[], char *fName)
 {
-    char RecTypes[] =  "1Leading_2Lagging_";
+    char RecTypes[] =  "0undefStrend_1Leading_2Lagging_";
     char Buff[512];
-    int rTyp1, rTyp2;
-    vector < double > vRanges;
+    int recTyp[3];
+    double rVals[MAX_MUTAGEN];
+    char scanTyp[32], *pTyp;
+    char *pB;
     
-    char *pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( (rTyp1=parsRec(pB, RecTypes, vRanges)) < 0 )   {
-        printf ("%s\n", fName);
+    for ( int n=0; n<MutGenTab.size(); n++ )   {
+        for ( int p=0; p<3; p++ )
+            MutGenTab[n].fract_strand.push_back (0);
+    }
+    for ( int Line=0; Line<3; Line++)   {
+        pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
+        if ( parsRecrd(pB, scanTyp, rVals, refMG) == 0 )  {
+            printf ("%s\n", fName);
+            return -1;
+        }
+        if ( ! ( pTyp=strstr(RecTypes, scanTyp)) )    {
+            printf ("Inv. StrandType '%s' at file  '%s'\n", scanTyp, fName );
+            return -1;
+        }
+        recTyp[Line] = atoi(pTyp-1);
+        for ( int n=0; n<MutGenTab.size(); n++ )
+            MutGenTab[n].fract_strand[recTyp[Line]] = rVals[n];
+    }
+    if ( recTyp[0]==recTyp[1] || recTyp[0]==recTyp[2] || recTyp[1]==recTyp[2])  {
+        printf ("%s :: redefined StrandType \n", fName);
         return -1;
     }
-    for ( int n=0; n<MutaGen.size(); n++ )
-        MutaGen[n].fract_strand[rTyp1] = vRanges[n];
-    //-------
-    pB = fgets(Buff, sizeof(Buff)-2, f_CAT);
-    if ( (rTyp2=parsRec(pB, RecTypes, vRanges)) < 0 )   {
-        printf ("%s\n", fName);
-        return -1;
-    }
-    if ( rTyp2==rTyp1)  {
-        printf ("%s :: redefined line : '%s'\n", fName, Buff);
-        return -1;
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )  {
-        MutaGen[n].fract_strand[rTyp2] = vRanges[n];
-        MutaGen[n].fract_strand[1] += MutaGen[n].fract_strand[0];
-        MutaGen[n].fract_strand[2] += MutaGen[n].fract_strand[1];
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )  {
-        if ( MutaGen[n].fract_strand[2] < DOUBLE_ONE )
-            printf ( "%s :: Check distribution of shares for %s (sum<1)\n",
-                    fName, MutaGen[n].MGname );
-        MutaGen[n].fract_strand[2] = (double) 1;
+    
+    for ( int n=0; n<MutGenTab.size(); n++ )  {
+        if ( MutGenTab[n].amtMut==0 )
+            continue;
+        if ( MutGenTab[n].fract_strand[0]==0 || MutGenTab[n].fract_strand[1]==0 ||
+             MutGenTab[n].fract_strand[2]==0 ) {
+            printf ("%s :: MutGen='%s' : Leading, Lagging, undefStrend must be > 0 : %lf %lf %lf\n",
+                    fName, MutGenTab[n].MGname,
+                    MutGenTab[n].fract_strand[1], MutGenTab[n].fract_strand[2], MutGenTab[n].fract_strand[0]);
+            return -1;
+        }
     }
     
     return 0;
 }
 /////////////////////////////////////////////////////////////////////////
+
+double rbeta(double alpha, double beta, mt19937_64& rng)
+{
+    if (alpha <= 0.0 || beta <= 0.0)    {
+        printf ("rbeta:: alpha and beta must be > 0");
+        return (double)-1;
+    }
+    
+    gamma_distribution<double> gA(alpha, 1.0);
+    gamma_distribution<double> gB(beta, 1.0);
+    
+    double x = gA(rng);
+    double y = gB(rng);
+    return x / (x + y);  // Beta(alpha, beta)
+}
+/////////////////////////////////////////////////////////////////////////
+
+vector<double> rdirichlet(const vector<double>& alpha, mt19937_64& rng)
+{
+    vector<double> x(alpha.size());
+    double sum = 0.0;
+    
+// генерируем гаммы для каждой компоненты
+    for (size_t i = 0; i < alpha.size(); ++i) {
+        if (alpha[i] <= 0.0)    {
+            printf ("rdirichlet:: all alpha[i] must be > 0 ");
+            x[0] = -1;
+            return x;
+        }
+        gamma_distribution<double> g(alpha[i], 1.0);
+        x[i] = g(rng);
+        sum += x[i];
+    }
+    
+// нормализация
+    for (size_t i = 0; i < alpha.size(); ++i)
+        x[i] /= sum;
+    
+    return x; // вектор вероятностей (сумма = 1)
+}
+//////////////////////////////////////////////////////////////////////////
+
+int MUTAGEN:: beta_dirichlet( )
+{
+    random_device rd;
+    mt19937_64 rng(rd());
+    vector < double > pv;
 /*
-int loadCodRanges(FILE *f_CAT, char *fName)
-{
-    char Buff[512];
-    char *pB;
-    char rType[64];
-    char RecTypes[2][16] = { "Coding", "Noncoding"};
-    int nMG, typ;
-    double portion;
-    
-    if ( ! ( pB=fgets(Buff, sizeof(Buff)-2, f_CAT) ) ) {
-        printf ("%s :: must be '%s' & '%s' lines at file\n", fName, RecTypes[0], RecTypes[1]);
-        return -1;
-    }
-    sscanf(pB, "%s\t", rType );
-    if ( strcmp(rType, RecTypes[0])==0 )
-        typ = 0;
-    else
-        if ( strcmp(rType,  RecTypes[0])==0 )
-            typ = 1;
-        else {
-            printf ("%s :: must be '%s' & '%s' lines at file : '%s'\n", fName, RecTypes[0], RecTypes[1], Buff);
-            return -1;
-        }
-    while (*pB != '\t' ) pB++;
-    
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        if ( ! *pB )
-            break;
-        if ( sscanf(pB, "\t%lf", &portion)==0 )    {
-            printf ( "%s ::  empty rangeValue for %s : '%s'\n",
-                    fName, MutaGen[nMG].MGname, Buff);
-            return -1;
-        }
-        MutaGen[nMG].fract_cod[typ] = portion;
-        while ( *pB && *pB != '\t' ) pB++;
-    }
-    if ( nMG != MutaGen.size() )    {
-        printf("%s :: Mismatch of Mutagen count=%d : must be = %d '%s'\n",
-               fName, nMG, (int)MutaGen.size(), Buff);
-        return -1;
-    }
-//----------------------------------------------------------
-    if ( ! ( pB=fgets(Buff, sizeof(Buff)-2, f_CAT) ) ) {
-        printf ("%s :: must be '%s' & '%s' lines at file\n", fName, RecTypes[0], RecTypes[1]);
-        return -1;
-    }
-    sscanf(pB, "%s\t", rType);
-
-    int typ1;
-    if ( strcmp(rType, RecTypes[0])==0 )
-        typ1 = 0;
-    else
-        if ( strcmp(rType,  RecTypes[1])==0 )
-            typ1 = 1;
-        else {
-            printf ("%s :: must be '%s' & '%s' lines at file : '%s'\n", fName, RecTypes[0], RecTypes[1], Buff);
-            return -1;
-        }
-    if ( typ1 == typ )  {
-        printf ("%s :: redefined line '%s' in file : '%s'\n", fName, rType, Buff);
-        return -1;
-    }
-    while ( *pB != '\t' ) pB++;
-    
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        if ( ! *pB )
-            break;
-        if ( sscanf(pB, "\t%lf", &portion)==0 )    {
-            printf ( "%s ::  empty rangeValue for %s : '%s'\n",
-                    fName, MutaGen[nMG].MGname, Buff);
-            return -1;
-        }
-        MutaGen[nMG].fract_cod[typ1] = portion;
-        while ( *pB && *pB != '\t' ) pB++;
-    }
-    if ( nMG != MutaGen.size() )    {
-        printf("%s :: Mismatch of Mutagen count=%d : must be = %d '%s'\n",
-               fName, nMG, (int)MutaGen.size(), Buff);
-        return -1;
-    }
-    
-    for ( int n=0; n<MutaGen.size(); n++ )
-        MutaGen[n].fract_cod[1] += MutaGen[n].fract_cod[0];
-        
-    
-    return 0;
-}
-//////////////////////////////////////////////////////////////////////////
-
-int loadGenRanges(FILE *f_CAT, char *fName)
-{
-    char Buff[512];
-    char *pB;
-    char rType[64];
-    char RecTypes[2][16] = { "Genes", "Intergenes"};
-    int nMG, typ;
-    double portion;
-    
-    if ( ! ( pB=fgets(Buff, sizeof(Buff)-2, f_CAT) ) ) {
-        printf ("%s :: must be '%s' & '%s' lines at file\n", fName, RecTypes[0], RecTypes[1]);
-        return -1;
-    }
-    sscanf(pB, "%s\t", rType );
-    if ( strcmp(rType, RecTypes[0])==0 )
-        typ = 0;
-    else
-        if ( strcmp(rType,  RecTypes[0])==0 )
-            typ = 1;
-        else {
-            printf ("%s :: must be '%s' & '%s' lines at file : '%s'\n", fName, RecTypes[0], RecTypes[1], Buff);
-            return -1;
-        }
-    while ( *pB != '\t' ) pB++;
-    
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        if ( ! *pB )
-            break;
-        if ( sscanf(pB, "\t%lf", &portion)==0 )    {
-            printf ( "%s ::  empty rangeValue for %s : '%s'\n",
-                    fName, MutaGen[nMG].MGname, Buff);
-            return -1;
-        }
-        MutaGen[nMG].fract_gen[typ] = portion;
-        while ( *pB && *pB != '\t' ) pB++;
-    }
-    //----------------------------------------------------------
-    if ( ! ( pB=fgets(Buff, sizeof(Buff)-2, f_CAT) ) ) {
-        printf ("%s :: must be '%s' & '%s' lines at file\n", fName, RecTypes[0], RecTypes[1]);
-        return -1;
-    }
-    sscanf(pB, "%s\t", rType);
-    int typ1;
-    if ( strcmp(rType, RecTypes[0])==0 )
-        typ1 = 0;
-    else
-        if ( strcmp(rType,  RecTypes[1])==0 )
-            typ1 = 1;
-        else {
-            printf ("%s :: must be '%s' & '%s' lines at file : '%s'\n", fName, RecTypes[0], RecTypes[1], Buff);
-            return -1;
-        }
-    if ( typ1 == typ )  {
-        printf ("%s :: redefined line '%s' in file : '%s'\n", fName, rType, Buff);
-        return -1;
-    }
-    while ( *pB != '\t' ) pB++;
-    
-    for ( nMG=0; nMG<MutaGen.size(); nMG++ )  {
-        if ( ! *pB )
-            break;
-        if ( sscanf(pB, "\t%lf", &portion)==0 )    {
-            printf ( "%s ::  empty rangeValue for %s : '%s'\n",
-                    fName, MutaGen[nMG].MGname, Buff);
-            return -1;
-        }
-        MutaGen[nMG].fract_gen[typ1] = portion;
-        while ( *pB && *pB != '\t' ) pB++;
-    }
-    for ( int n=0; n<MutaGen.size(); n++ )
-        MutaGen[n].fract_gen[1] += MutaGen[n].fract_gen[0];
-
-    return 0;
-}
+ vector < double > fract_rt;     //  = 0:7  (RT0 ... RT7)
+ double fract_cod[2];            //  [0]=noncoding; [1]=coding
+ double fract_gen[2];            //  [0]=intergenes; [1]=genes
+ vector < double > fract_strand; //  [0]=undefined; [1]=leading; [2]=lagging
 */
+
+// Gene/intergene
+    if (  (fract_gen[0]=rbeta(fract_gen[0], fract_gen[1], rng) ) < 0 )    {
+        printf ( " for Gene/intergene\n");
+        return -1;
+    }
+    fract_gen[1] = (double) 1;
+// Coding/non-coding
+    if (  (fract_cod[0]=rbeta(fract_cod[0], fract_cod[1], rng) ) < 0)   {
+        printf ( " for Coding/non-coding\n");
+        return -1;
+    }
+    fract_cod[1] = (double) 1;
+    
+// Leading/lagging
+    pv = rdirichlet(fract_strand, rng);
+    if ( pv[0] < 0.0 )  {
+        printf ( " for Leading/lagging\n");
+        return -1;
+    }
+    fract_strand[0] = pv[0];
+    fract_strand[1] = fract_strand[0] + pv[1];
+    fract_strand[2] = fract_strand[1] + pv[2];
+    
+// RT_gene
+    pv.clear();
+    pv = rdirichlet(fract_rt_gene, rng);
+    if ( pv[0] < 0.0 )  {
+        printf ( " for RT_gene\n");
+        return -1;
+    }
+    fract_rt_gene = pv;
+    for ( int n=1; n<RT_TAB_SIZE; n++ )
+        fract_rt_gene[n] += fract_rt_gene[n-1];
+    
+// RT_intergene
+    pv.clear();
+    pv = rdirichlet(fract_rt_intg, rng);
+    if ( pv[0] < 0.0 )  {
+        printf ( " for RT_interGene\n");
+        return -1;
+    }
+    fract_rt_intg = pv;
+    for ( int n=1; n<RT_TAB_SIZE; n++ )
+        fract_rt_intg[n] += fract_rt_intg[n-1];
+
+    return 0;
+}
 //////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
 
