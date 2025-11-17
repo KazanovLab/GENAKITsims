@@ -1,0 +1,4 @@
+	APOBEC
+Leading	2781.3314
+Lagging	3234.2893
+undefStrend	186.4311
