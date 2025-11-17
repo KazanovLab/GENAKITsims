@@ -8,6 +8,7 @@
 
 #ifndef mutaGen_h
 #define mutaGen_h
+#include <cstring>  //for linux
 
 #define MUTGEN_ID_SIZE 16
 typedef pair< char[MUTGEN_ID_SIZE], float>  MUTGEN_FRACT;

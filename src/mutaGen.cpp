@@ -7,10 +7,12 @@
 //
 
 #include <stdio.h>
+#include <cstring>  //for linux
 #include <vector>
 #include <string>
 #include <time.h>
 #include <random>
+#include <algorithm>    // там, где sort/lower_bound
 
 #include "cmain.h"
 #include "xrosoma.h"

@@ -7,6 +7,8 @@
 //
 
 #include <stdio.h>
+#include <cstring>
+
 #include "xrosoma.h"
 
 char Nucleos[6] = "ACTGN";
