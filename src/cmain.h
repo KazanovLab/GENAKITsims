@@ -30,7 +30,7 @@ struct PROGARGS {
     string REPTIpath;
     string BASEpath;    //genome.bin
     string OUTdir;
-    string INdir;
+    string INdir;       // set factor_files
     FILE *fGENES;
     FILE *fREPTI;
     unsigned char argTAG;
@@ -53,12 +53,12 @@ bool is_file(const char  *path );
 
 int fgets_ShortRec( char *shortRec, int sizeRec, FILE *f_in );
 int readCTGR ( );
-int testHeader(char *hdr, char *fName);
-int loadMutRanges(FILE *f_CAT, char *fName);
-int loadRtRanges(FILE *f_CAT, char *fName);
-int loadCodRanges(FILE *f_CAT, char *fName);
-int loadGenRanges(FILE *f_CAT, char *fName);
-int loadStrandRanges(FILE *f_CAT, char *fName);
+int testHeader(char *hdr, int refMG[], char *fName);
+int loadMutRanges(FILE *f_CAT, int refMG[], char *fName);
+int loadRtRanges(FILE *f_CAT, int refMG[], char *fName);
+int loadCodRanges(FILE *f_CAT, int refMG[], char *fName);
+int loadGenRanges(FILE *f_CAT, int refMG[], char *fName);
+int loadStrandRanges(FILE *f_CAT, int refMG[], char *fName);
 
 void print_N_zone( );
 

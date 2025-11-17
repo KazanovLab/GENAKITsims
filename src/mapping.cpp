@@ -79,28 +79,29 @@ void make_keySet()
 //    keySet.clear();
     keySet.reserve(KEY_SET_RESERV);
     indx=0;
-    for (int m=0; m<4; m++ )    {
+    for (int m=0; m<4; m++ )    {                   //m<4
         Motif[1] = getNuc(m); //Nucs[m];
-        for (int l=0; l<4; l++ )    {
+        for (int l=0; l<4; l++ )    {               //l<4
             Motif[0] = getNuc(l); // Nucs[l];
-            for (int r=0; r<4; r++ )    {
+            for (int r=0; r<4; r++ )    {              //r<4
                 Motif[2] = getNuc(r); //Nucs[r];
                 for (int g=1; g>=0; g-- )    {          //"gi"
                     for (int c=1; c>=0; c-- )    {      //"cn-"
-                        for ( int s=2; s>=0; s--)   {   // strand = "<>-" (leading, lagging, undef)
+                        for ( int s=2; s>=0; s--)   {   // strand = "<>-" (lagging, leading, undef)
                             for (int t=0; t<=RT_TAB_SIZE-1; t++ )    {     //  0 : 7
                                 tag = '\0';
                                 if ( g )
                                     SET_GEN_TAG(&tag);
                                 if ( c )
                                     SET_CODING_TAG(&tag);
-                                if ( s==1 )
-                                    SET_LEADING_TAG(&tag);
-                                if ( s==2 )
-                                    SET_LAGGING_TAG(&tag);
                                 SET_RT_VAL(&tag, t);
+                                if ( t )    {
+                                    if ( s==1 )
+                                        SET_LEADING_TAG(&tag);
+                                    if ( s==2 )
+                                        SET_LAGGING_TAG(&tag);
+                                }
                                 formKEY (Motif, &tag, key);
-//                                setKEYbyTag (key, &tag, invert);
                                 if ( indx > 0 ) {
                                     itK = keySet.find(key);
                                     if ( itK != keySet.end() )
@@ -258,22 +259,20 @@ int XROSOMA:: motivator( )
             continue;
         }
 
-        posMot = (unsigned int)( pXr+1 - Xbody );       // +1 ---> middl_NUC
-        pTag = Xtag + posMot;
+        posMot = (unsigned int)( pXr+1 - Xbody );       // +1 ---> Pos, not index
+        pTag = Xtag + posMot;                           // middl nuc
         invert = formKEY (Motif, pTag, Key);
         
         itM = keySet.find(Key);
         if ( itM != keySet.end() )  {
-            int sec = itM->second;              /// ttttttteeeeeeeeesssssssstttttttt
-            string  fst = itM->first;              /// ttttttteeeeeeeeesssssssstttttttt
             vX_Data[itM->second].vPosM.push_back(INV_POS (invert,posMot));
             cntM++;
-//            pXr++;
         }
         else    {
             printf( "KEY [%s] not found at MAP\n", Key);
             return -1;
         }
+//        testValidDNK( posMot+1, Motif[1] );         // +1 for miiidl nuc
         pXr++;
     }
 //  -------------------------

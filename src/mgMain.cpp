@@ -20,7 +20,7 @@ using namespace std;
 PROGARGS ArgKit;
 extern HUGEN GENOM;
 extern vector < XROSOMA > vecDNK;
-extern vector < MUTAGEN > MutaGen;
+extern vector < MUTAGEN > MutGenTab;
 vector <MOTIF_vPOS> XROSOMA:: vX_Data;
 
 FILE *Ftrace=NULL;
@@ -29,6 +29,8 @@ void printAllInd( );
 int test_readBasGen( );
 void testTagGEN_RT ( );
 void testFileBin( );
+int compareBin_Xro ();
+// int comparePos_Xro ();   //  mark='comparePos_Xro ()'
 //void compareKeys( ); //testing
 /////////////////////////////////////////////////////////////////////////
 
@@ -58,22 +60,31 @@ int main(int argc, char* argv[])
         return -1;
     if ( readGenBase( ) < 0 )
         return  -1;
+    
+//printf( "\n\n=========================\n TEST LoadXromoSet()\n=========================\n");
+// Modify loadXromoSet () before call        mark='comparePos_Xro ()'
+//    ArgKit.HUGpath = "/Users/gena/gena_old/mutas/humanGen/hg19.fa"; //  mark='comparePos_Xro ()'
+//    if ( LoadXromoSet( ArgKit.HUGpath.c_str() ) <= 0 )            //  mark='comparePos_Xro ()'
+//        return -1;                                                //  mark='comparePos_Xro ()'
+//    comparePos_Xro ();
+//    return 77;
+    
     if ( readCTGR ( ) < 0 )
         return -1;
     
     if ( openXtempFiles()<0 )
         return -1;
     
-//    GENOM.testRNDmut( );
-//    return 0;
     
-    for ( int n=0; n<MutaGen.size(); n++ )  {
+    for ( int n=0; n<MutGenTab.size(); n++ )  {
+        if ( MutGenTab[n].amtMut <= 0 )
+            continue;
         clock_t startMG = clock();
-        printf("Processing Mutagen %s (muts=%d).... \n", MutaGen[n].MGname, MutaGen[n].amtMut );
-        int rc = MutaGen[n].splitMut2Key();
+        printf("Processing Mutagen %s (muts=%d).... \n", MutGenTab[n].MGname, MutGenTab[n].amtMut );
+        int rc = MutGenTab[n].splitMut2Key();
         if (  rc < 0 )
             return -1;
-        int rc1 = GENOM.rndMutation( MutaGen[n].MGname);
+        int rc1 = GENOM.rndMutation( MutGenTab[n].MGname);
         if ( rc1 < 0 )
             return -1;
         
@@ -84,29 +95,13 @@ int main(int argc, char* argv[])
     
     mergeXtempFiles( );
     
-/*
-// =================================================
-   for ( int indX=0; indX<vecDNK.size(); indX++ ) {
-        vecDNK[indX].motivator( );
-//       vecDNK[indX].test_xtract( );
-        if (  vecDNK[indX].writeBas_X() < 0 )
-            return -1;
-//        vecDNK[indX].test_readBasX( );
-    }
-// ====================================================
-    printAllInd( );
-    
-    if ( GENOM.writeGenBase() < 0 )
-        return -1;
-//    test_readBasGen( );
-    
 //  delete temp_base  !!!!!!!!!!!!!!!!!
     for ( int nXr=0; nXr<vecDNK.size(); nXr++ ) {
         if ( vecDNK[nXr].XtempFile )
             fclose(vecDNK[nXr].XtempFile);
         remove(vecDNK[nXr].XtempFilePath.c_str());
     }
-  */
+  
     
     clock_t stopMain = clock();
     duration = (double)(stopMain - startMain) / CLOCKS_PER_SEC;
@@ -128,7 +123,9 @@ int buildGenBase( )
     //      testTagGEN_RT( );  return -1;
     
     reservIndexSpace();
-    // =================================================
+//    compareBin_Xro (); 
+//    return 7;
+// =================================================
     for ( int indX=0; indX<vecDNK.size(); indX++ ) {
         vecDNK[indX].motivator( );
 //       vecDNK[indX].test_xtract( );
@@ -146,13 +143,13 @@ int buildGenBase( )
     
 //    test_readBasGen( );
     
-/*  delete temp_base  !!!!!!!!!!!!!!!!!
+//  delete temp_base  !!!!!!!!!!!!!!!!!
     for ( int nXr=0; nXr<vecDNK.size(); nXr++ ) {
         if ( vecDNK[nXr].XtempFile )
             fclose(vecDNK[nXr].XtempFile);
         remove(vecDNK[nXr].XtempFilePath.c_str());
     }
-*/
+
     return 0;
 }
 /////////////////////////////////////////////////////////////////////////
@@ -314,7 +311,7 @@ int PROGARGS:: procArg( int argc, char* argv[] )
         printf ("Not defined:  -o <output_directory> \n");
         return -1;
     }
-    if ( amtMut <= 0 )  {
+    if ( isArg_I() && amtMut <= 0 )  {
         printf ("Not defined:  -mut value \n");
         return -1;
     }
@@ -348,7 +345,7 @@ int readGenBase( )
     clock_t Tstop = clock();
     double  duration = (double)(Tstop - Tstart) / CLOCKS_PER_SEC;
     printf( "------> end load dT==%5.2f\n", duration );
-
+    
     return 0;
 }
 /////////////////////////////////////////////////////////////////////////
@@ -390,7 +387,7 @@ int fgets_ShortRec( char *shortRec, int sizeRec, FILE *f_in )
     return lng;
 }
 
-////////////////////////////////////////////////////// //////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
 
 void  xtrFileName ( const char  *Fpath, string &sName)

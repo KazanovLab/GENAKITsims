@@ -236,8 +236,7 @@ int HUGEN:: readIndXro ( vector <XROSOMA> &vecX )
 {
     int cntX;
     long offs_indX;
-    //    INDEX_BAS Indx1;
-    
+
     vecX.clear();
     
     fseek( GenBasFile, 0L, SEEK_SET);

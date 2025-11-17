@@ -17,7 +17,7 @@
 using namespace std;
 
 #define MOTKEY_SIZE 8
-typedef pair< char, unsigned int>  INV_POS;
+typedef pair< char, unsigned int>  INV_POS; // invert, PosMotif (not index) -> first byte
 
 struct MOTIF_vPOS {
     char motKey__ [MOTKEY_SIZE];                 // non used nowhere 
