@@ -220,6 +220,7 @@ int HUGEN:: rndMutation( const char *mgName )
     int cntMut=0;
     int RetC;
     
+    
     memset(motif, '\0', sizeof(motif));
     for ( int nK=0; nK<vIndexG.size(); nK++)    {
         if ( vIndexG[nK].amtPos <= 0 )
@@ -267,7 +268,7 @@ int HUGEN:: rndMutation( const char *mgName )
                 break;
         }
         rt     = vIndexG[nK].mKey[_iKEY_RT];
-        
+
         for ( int nALT=0; nALT<4; nALT++ )  {
             if ( vAltCnt[nK].cntP[nALT]==0 )
                 continue;
@@ -286,8 +287,10 @@ int HUGEN:: rndMutation( const char *mgName )
                 
                 if ( PosG.first )
                     rewindMotif(GENOM.vIndexG[nK].mKey, motif);
-                else
-                    strncpy(motif, GENOM.vIndexG[nK].mKey, MOTKEY_SIZE);
+                else    {
+                    strncpy(motif, GENOM.vIndexG[nK].mKey, 3);
+                    motif[3] = '\0';
+                }
                 cREF = motif[1];
                 cALT = ( PosG.first ) ? getCmpl_Nuc(getNuc (nALT)) : getNuc (nALT);
 //  mark='comparePos_Xro ()'
@@ -297,7 +300,7 @@ int HUGEN:: rndMutation( const char *mgName )
 //                }   //  mark='comparePos_Xro ()'
 
                motif[3] = '\0';
-//              CHR POS REF ALT MOTIF CODING GENES RT STRAND MUTAGEN
+//                                       CHR POS REF ALT MOTIF CODING GENES RT STRAND MUTAGEN
                 fprintf(pXro->XtempFile, "%s\t%u\t%c\t%c\t%s\t%s\t%s\t%c\t%s\t%s\n",
                         pXro->XroID.c_str(), PosXmotif+1, cREF,cALT, motif,
                         Coding, Genes, rt, Strand, mgName );
