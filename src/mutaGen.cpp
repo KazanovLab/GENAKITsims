@@ -116,7 +116,7 @@ int makeMutTab( )
         char shortID[8];
         char fullID [MUTGEN_ID_SIZE];
     }
-    iniMut[4] = { {"-ap", "APOBEC"}, {"-uv", "UV"},  {"-sm", "SMOKING"},  {"-cl", "CLOCK"} };
+    iniMut[4] = { {"-p", "APOBEC"}, {"-uv", "UV"},  {"-sm", "SMOKING"},  {"-cl", "CLOCK"} };
     
     MutGenTab.clear();
     for ( n=0; n<4; n++)
