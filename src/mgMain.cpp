@@ -7,6 +7,8 @@
 //
 
 #include <stdio.h>
+#include <cstring>  //for linux
+#include <ctime>    //for linux
 #include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -32,7 +34,8 @@ void testFileBin( );
 int compareBin_Xro ();
 // int comparePos_Xro ();   //  mark='comparePos_Xro ()'
 //void compareKeys( ); //testing
-/////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[])
 {

@@ -5,6 +5,9 @@
 //  Created by Gennady on 8/9/25.
 //  Copyright © 2025 Gennady. All rights reserved.
 //
+
+#include <cstring>  //for linux
+#include <ctime>    //for linux
 #include "string"
 
 #include "cmain.h"

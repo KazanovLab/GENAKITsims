@@ -10,6 +10,7 @@
 #define genbase_h
 
 #include <stdio.h>
+#include <cstring>  //for linux
 #include "vector"
 #include "string"
 

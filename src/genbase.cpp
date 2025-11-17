@@ -6,6 +6,10 @@
 //  Copyright © 2025 Gennady. All rights reserved.
 //
 
+#include <cstring>  //for linux
+#include <ctime>    //for linux
+#include <algorithm>    // sort/lower_bound
+
 #include "cmain.h"
 #include "mapping.h"
 #include "xrosoma.h"
