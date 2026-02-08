@@ -52,7 +52,7 @@ gksims \
 
 Inputs:
 
--b — path to the index dir from step 1 (/GKsims_indices/)
+-b — path to the index file from step 1 (/GKsims_indices/hg19_Base.bin)
 
 -s — system directory with mutagen's distribution parameters
 
@@ -66,7 +66,7 @@ Example
 
 ```
 gksims \
-  -b   /GKsims_indices/ \
+  -b   /GKsims_indices/hg19_Base.bin \
   -s   /GKsims_system/ \
   -n 500000 -p 60 -u 40 \
   -o   /outd/
