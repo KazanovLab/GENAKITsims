@@ -78,6 +78,3 @@ Please use the [GitHub issue tracker](https://github.com/KazanovLab/GKsims/issue
 ## Citing
 *to be submitted*
 
-## Funding
-This study was supported by the Scientific and Technological Research Council of Turkey (TUBITAK) under Grant Number 123E476. The authors thank TUBITAK for their support. 
-
